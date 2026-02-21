@@ -1,0 +1,8 @@
+# Ignore the data directory at repository root
+/TFM/data/
+
+# Ignore CSV files inside any data directory (redundant if data/ is ignored)
+data/*.csv
+
+# To ignore all CSV files across the repo, uncomment the following line:
+# *.csv
