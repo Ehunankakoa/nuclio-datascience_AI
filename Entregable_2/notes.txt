@@ -1,0 +1,89 @@
+ML CHECKLIST
+
+1. Business Understanding --> ML Canvas
+
+2. Data Understanding
+    2.1. Análisis Univariante: 
+        tamaño df (df.info)
+        visualización directa (df.head)
+        tipo de atributos disponibles (numéricos o categóricos) --> transf object -> categ y float a int (si posible)
+        Estadísticos descriptivos (valores medios, dispersión...) --> variables numéricas --> (df.describe)
+        Número valores nulos
+        Distribucuón valores target (en clasificación superv)
+        Identificación outliers
+        Identificación datos erróneos
+        Correlación de variables con target
+        Correlación de variables con la clase (unidimensional)
+        Visualización gráfica de las distribuciones
+            Numéricas: histogramas, box-plots, violin-plots...
+            Categóricas: pivot table, bar-charts, conteo directo...
+
+    2.2. Análisis Multivariante
+        distribución variables 2 a 2 (scatter plots)
+        Corr variables 2 a 2 (corr lineal)
+        Cross-tabs
+        Corr combinaciones de variables con la clase
+
+3. Data Preparation (pasar vaiables a numéricas)
+    3.1. Limpieza atributos
+        Ajuste de tipos (object a cat, float a int, int a bool, etc)
+        Imputación de nulos o eliminación de registros con nulos
+        Corrección o eliminación de outliers
+        Eliminación atributos con baja varianza o elevada correlación con otros
+
+    3.2. Transformación atributos
+        Categóricas: OHE, Label-Encoding, Agrupación valores
+        Numéricas: Escalado, Categ var num, Redondeo
+        Fecha: conv a tiempo (num), agregación, diferencias
+        Textuales: Numerización de variables, extracción de patrones, palabras clave
+
+    3.3. Generación de features 
+        Por combinación de variables
+        "Añade una var aleatoria al modelo"
+
+    3.4. Selección de datos
+        Muestreo de registros (guiado, aleatorio o estratificado)
+        Selección atributos
+
+4. Modelling
+    4.1. Particion y remuestreo
+        estrategia de validación [
+            Random Holdout (asignación de splits de forma aleatoria), 
+            k-fold (poca data: varias versiones test-train splits), 
+            Bootstrap (muy poca data: asig test aun así puede entrar de nuevo en train)
+        ]
+        política de partición (aleatorio o guiado)
+        estrategias de remuestreo (validación intacta)
+        métrica de evaluación (sólo una métrica)
+
+    4.2. Evaluación de algoritmos
+        Definición de modelo de base (keep it simple)
+        Short-list de alg de dif tipos
+
+    4.3. Optimización de modelos
+        Optimización de hiperparámetros
+        Algoritmos de ensamble
+
+5. Evaluation
+    Model selection: mejor métrica en test
+    Model Evaluation: comprobación de rendimiento en validación
+    Recalibration
+
+6. Deployment
+    6.1. Análisis y presentación de resultados
+        Presentación visión global del problema y contexto
+        Representación var más significativas
+        Análisis métricas o curvas de rendimiento
+        Análisis tipos de errores + habituales
+        Representación directa de reglas de modelo (rule-fit o Shapley Values)
+        Análisis unidimensional de var y/o reglas
+
+    6.2. Operacionalización
+        Documentación de código
+        Adaptación de código para entorno productivo
+        Preparación de los sist para operaz. (paquetería,etc)
+        Prep sist de monitorización y alertas de caída de rendimiento
+
+
+
+
