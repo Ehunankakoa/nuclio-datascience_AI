@@ -213,6 +213,17 @@ AUC e [0.5 ,1] (better close to 1), if <0.5, probabilities might have to be chan
 
 AUC > 0.75 --> buen modelo
 
+
+### 4.4. Feature Importance
+
+Es importante revisar las feature importance para:
+
+- Detectar features eliminables para en el momento de volver a entrenar, se haga con menos ruido y menos overfitting (menos reglas específicas).
+- Revisar comportamiento del modelo: tal vez sólo usa 5 variables (underfit de manual)
+- Revisar features muy correlacionadas (podría sumarse su importance) 
+
+    pd.Series(rf_model.feature_importances_, index=X_train.columns).sort_values(ascending = False).head (15)
+
 ## 5. Estratégicas de validación
 
 Bias-Variance trade off. 
@@ -245,4 +256,4 @@ Si dataset desbalanceado, cuanto menos datos más problemático es. Jugar con cl
 
 ## 6. 
 
-     Hasta descanso Clasi4 (1:50)
+     Hasta descanso Regre1
