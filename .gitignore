@@ -6,3 +6,4 @@ data/*.csv
 
 # To ignore all CSV files across the repo, uncomment the following line:
 *.csv
+*.code-workspace

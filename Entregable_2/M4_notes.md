@@ -156,7 +156,9 @@ Minimización de distancia entre puntos. Cálculos de parecidos.
 - Clasificación y Regresión: K-NN (K- Nearest Neighbours)
 - Agrupamiento: K Means/Modes (busca medias/modas de puntos parecidos) y DBSCAN
 
-### 3.2. Métodos geométricos:
+**Sensible a outliers**
+
+### 3.3. Métodos geométricos:
 
 Ajuste de un plano de N-dimensiones. (En n=2, ajuste de línea a puntos)
 
@@ -164,14 +166,15 @@ Ajuste de un plano de N-dimensiones. (En n=2, ajuste de línea a puntos)
 - Regresión: Linear Regression (series temporales), ARIMA o Prophet
 - Agrupamiento: nada.
 
+**Sensible a outliers**
 
-### 3.3. Métodos conexionistas:
+### 3.4. Métodos conexionistas:
 
 Redes neuronales (clasi & regression):
 
 - Clasificación: textos, Large Language Models (LLMs). {}
 
-## 4. Métodos de rendimiento/evaluación
+## 4. Clasificación: Métodos de rendimiento/evaluación (Clasi4)
 
 Comparación del model.score con train vs test -> over o underfitting? Si diferencia de score es <1%, es un fit correcto.
 
@@ -224,7 +227,81 @@ Es importante revisar las feature importance para:
 
     pd.Series(rf_model.feature_importances_, index=X_train.columns).sort_values(ascending = False).head (15)
 
-## 5. Estratégicas de validación
+## 5. Regresión: Métodos de rendimiento/evaluación
+
+Comparación del model.score con train vs test -> over o underfitting? Si diferencia de score es <1%, es un fit correcto.
+
+Si dataset con fechas, revisar el success dependiendo de la fecha.
+
+### 5.1. Métricas
+
+- MSE (Mean Square Error)
+- RMSE (Root Mean Square Error)
+- MAE (Mean absolute Error)
+- MAPE (Mean Absolute Percentage Error)
+
+
+### 5.2. Outliers (Reg1)
+
+Se deben corregir para que no afecten a los métodos de vecindad o geométricos.
+
+Formas de corregir:
+
+1. Eliminación: se reconocen como errores random (persona con 80 hijos) y su afectación es menor al 1% de los datos.
+2. Transformación:
+
+    2.1. Logarítmica: contrae los valores extremos al grueso de la distribución. Si transformación tambn en target nos aseguramos relación lineal. (Sólo vale para valores positivos). 
+    La distribución normal nos permite emplear boxplot para eliminar outliers y usar Regresión o métodos de Vecindad con más tranquilidad.
+    Permite comparar diferentes variables.    
+
+    2.2. Scaling (non-supervised methods): normalización de los datos para e [0,1]
+
+    2.3. Imputación: mismas técnicas de imputación que nulos.
+
+Detección de outliers **en Distribuciones Normales**:
+
+- Distribución normal: nos muestra la media (µ) y la desviación tipo (σ, dispersión de los datos respecto a la media).
+    - µ +- σ : 68% de los datos.
+    - µ +- 2σ : 95% de los datos.
+    - µ +- 3σ : prácticamente todos los datos. <ins>Los que quedan son outliers</ins>.
+
+- Rango Intercuartílico (IQR): rango entre el percentil 25 (Q1) y 75 (Q3).
+    - Límite superior = Q3 + 1.5 IQR
+    - Límite inferior = Q1 - 1.5 IQR
+
+
+### 5.3. Correlaciones:
+
+Importante: correlación **<ins>no significa causalidad </ins>**
+
+- Lineal (Pearson): variables continuas tienen correlación lineal e [-1,1]. Si >0 relación directa, si es <0 inversamente relacionada.
+- Relación no lineal (Spearman): las series temporales son un ejemplo. La variable cambia con el tiempo.
+
+- TPR: True Positive Rate. Cantidad de aciertos, recall.
+
+        TPR (Recall)= TP/(TP+FN) // Better if close to 1
+
+- FPR: False positive rate
+
+        FPR = FP/(FP + TN)       // Better if close to 0
+
+AUC e [0.5 ,1] (better close to 1), if <0.5, probabilities might have to be changed (detects errors better)
+
+AUC > 0.75 --> buen modelo
+
+
+### 5.4. Feature Importance
+
+Es importante revisar las feature importance para:
+
+- Detectar features eliminables para en el momento de volver a entrenar, se haga con menos ruido y menos overfitting (menos reglas específicas).
+- Revisar comportamiento del modelo: tal vez sólo usa 5 variables (underfit de manual)
+- Revisar features muy correlacionadas (podría sumarse su importance) 
+
+    pd.Series(rf_model.feature_importances_, index=X_train.columns).sort_values(ascending = False).head (15)
+
+
+## 6. Estratégicas de validación
 
 Bias-Variance trade off. 
 - Overfitting: data memorization, low generalization capacity. Too much vairance.
@@ -237,15 +314,15 @@ Para elegir el validation set se debe tener en cuenta la distribución del targe
 - Tendencia: dirección constante (precio vivienda). validation set es el subset más reciente.
 - Si mix: mejor datos más recientes.
 
-### 5.1. Random Holdout
+### 6.1. Random Holdout
 
 Dataset split into Validation Set (final evaluation), Test Set (model development) and Training Set. El tamaño de cada partición debe ajustarse al tamaño del dataset y ser suficientemente grandes para obtener métricas de evaluación estadísticamente significativas.
 
-### 5.2. K-Fold Cross Validation
+### 6.2. K-Fold Cross Validation
 
 Repetición de proceso de modelización (Train + Test) k veces. El dataset ya se ha dividido en Validation y modelling split/k. De esta manera se obtiene una métrica de rendimiento promedio, modelizando k veces, empleando cada split de modeling como test en cada vez.
 
-### 5.3. Bootstrap (muy pocos datos)
+### 6.3. Bootstrap (muy pocos datos)
 
 En caso de muy pocos datos para realizar la validación, se realizan n repeticiones de modelización, mezclando splits dentro del dataset.
 
@@ -254,6 +331,9 @@ En caso de muy pocos datos para realizar la validación, se realizan n repeticio
 
 Si dataset desbalanceado, cuanto menos datos más problemático es. Jugar con class_weights
 
-## 6. 
+## M4. Alejandro Tinto
+
+- Lograr certificado AWS. Aprender a emplear los recursos de aws.
+- FireDucks reduce mucho el tiempo de pandas en datasets grandes.
 
      Hasta descanso Regre1
