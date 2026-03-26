@@ -335,5 +335,6 @@ Si dataset desbalanceado, cuanto menos datos más problemático es. Jugar con cl
 
 - Lograr certificado AWS. Aprender a emplear los recursos de aws.
 - FireDucks reduce mucho el tiempo de pandas en datasets grandes.
+- Repositorio con código en Github
 
      Hasta Regre1 2:04
