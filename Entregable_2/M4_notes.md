@@ -8,16 +8,83 @@
 4. Modelling: escoger algoritmo y optimización de parámetros.
 5. Evaluación: métricas y memorización.
 
-### 1.1. Data preparation:
+### 1.1. Machine Learning Canvas (Regre2):
+
+1. Prediction Task (qué tarea tiene el modelo): determine fee flat
+2. Decision (what does the model do): ajustar fee flat según precio a pagar total.
+3. Value Proposition (what do I get by making the ML model): maximizar fee flat
+4. Data Collection (how was the data collected): from an API (it makes the connection to a server, the waiter in a restaurant)
+5. Data Source: data base where the data is stored
+6. Impact Simulation (what is used for simulation, cost/gain for correct/incorrect decisions): low prices had a fixed fee.
+7. Making Predictions:
+8. Building Models (how many, updated or not needed, how much time needed):
+9. Features (useful columns for the model, feature engineering).
+10. Monitoring (metrics and KPI's, impact on both end-users and business): how much MSE has the model over time, how much revenue the team is winning since implementing the solution.  
+
+
+### 1.2. Data preparation:
 
 1. Split: validation (ver Estrategias de Validación), test y train.
 2. Columnas a eliminar: columnas con >95% nulos o alta cardinalidad (IDs, etc).
 3. Filas a eliminar: nulos en target, fila con muchos nulos y en columnas con <0.5% nulos.
 4. Análisis de variables:
 
+    4.1. Análisis del target: tipo de variable, nulos, balanceado?...
+
+    Datasets Desbalanceados (Reg3): si el target tiene una clase mayoritaria >80%, el modelo aprenderá a predecir la clase mayoritaria con facilidad (i.e. transacciones fraudulentas). Cuantos menos datos, es peor.
+
+    Cómo se balancear:
+
+    - Random Oversampling: aumentar la cantidad de filas de la clase minoritaria. Generación de datos artificiales (caídas de servidores o fallos mecánicos en trenes o aviones)
+    - SMOTE: generar un dato sintétco generado en algún punto del espacio entre 2 datos reales cercanos.
+    - Random Undersampling: útil si se tienen muchos datos. Se puede convinar con oversampling.
+    - Tomek Links: eliminación de filas de clase mayoritaria cercanas a valores de filas clase minoritaria. Train y test irán bien, pero validation le costará más.
+
+
+     Gráficas:
+
+            def plot_cat_values(dataframe, column, target_column):
+            plt.figure(figsize=(15,8))
+            #en una única grafica de 2x1 en el primer slot
+            ax1 = plt.subplot(2,1,1)
+            ## Graficamos el conteo de cada uno de los valores
+            ax1 = sns.countplot(
+                data = dataframe, x = column,
+                order = list(dataframe[column].unique())
+            )
+            ax2 = plt.subplot(2,1,2) # share ax1 para que me pinte el axis en el mismo orden
+            ## Graficamos la distribución del target sólo para aquellos casos con target > 0 (para que no se chafe el BP)
+            ax2 = sns.boxenplot(
+                data = dataframe[dataframe[target_column] > 0],
+                x = column,
+                y = target_column,
+                order = list(dataframe[column].unique())
+            )
+            plt.show()
+
     4.1. Fecha: plot vs target. Extraer números.
 
-    4.2. Categóricas: PIVOTTABLE (groupby por etiqueta) con el len, sum y media de target. df.pivot_table(index = 'var_analizar', values = target, aggfinc = [len, sum, np.mean])
+    4.2. Categóricas:
+
+            def explore_cat_values(dataframe, column, target_column):
+            _results_df = dataframe[dataframe[target_column] > 1].pivot_table(index=column, values=target_column, aggfunc=[len, np.mean,lambda x: np.percentile(x, 50) ,lambda x: np.percentile(x, 25) ,lambda x: np.percentile(x, 75)])
+            _results_df.columns = ['transactions', 'mean_revenue_ln','median_value','25pct_value','75pct_value']
+            _results_df['n_rows'] = dataframe[column].value_counts(dropna=False)
+            _results_df['pct_rows'] = dataframe[column].value_counts(normalize=True, dropna=False)
+            _results_df['pct_transactions'] = _results_df['transactions'] / _results_df['n_rows']
+            _results_df = _results_df[['n_rows', 'pct_rows', 'transactions', 'pct_transactions', 'mean_revenue_ln','25pct_value','median_value','75pct_value']]
+            return round(_results_df,3)
+
+    - PIVOTTABLE (groupby por etiqueta) con el len, sum y media de target. 
+
+            df.pivot_table(index = 'var_analizar', values = target, aggfinc = [len, sum, np.mean])
+    - Métrica chi2: correlación entre 2 variables. p-value close to 0 --> ++corr
+
+            from scipy.stats import chi2_contingency
+            stat, p_value, dof, expected = chi2_contingency(device_tab)
+
+    - Reducción de categorías no necesarias para encarar OHE o fijar FrequencyEncoder (FE)
+
 
     4.3. Numéricas: en principio no hay preprocesado. Lo suyo es mirar las más importantes y las menos. Boxplot, correlación pej.
 
@@ -166,7 +233,18 @@ Ajuste de un plano de N-dimensiones. (En n=2, ajuste de línea a puntos)
 - Regresión: Linear Regression (series temporales), ARIMA o Prophet
 - Agrupamiento: nada.
 
-**Sensible a outliers**
+**Sensibles a outliers**
+
+#### 3.3.1. Linear Regresion
+
+Modelo muy básico que busca reducir el error cuadrático medio: MSE. Busca una relación lineal entre 2 variables (var independiente y target). Funciona si no hay muchos datos y son sencillos de explicar (las relaciones entre variables son claras, en algunas ramas de marketing se emplea).
+
+    y = b + a * X
+
+- **MUY Sensible a outliers**. Un dato alejado de la tendencia va a modificar la pendiente del modelo.
+- Sensible a multicolinearidad: no trabaja bien con variables muy correlacionadas entre ellas. Hay que quedarse con la más significativa.
+
+
 
 ### 3.4. Métodos conexionistas:
 
@@ -276,21 +354,10 @@ Importante: correlación **<ins>no significa causalidad </ins>**
 
 - Lineal (Pearson): variables continuas tienen correlación lineal e [-1,1]. Si >0 relación directa, si es <0 inversamente relacionada.
 - Relación no lineal (Spearman): las series temporales son un ejemplo. La variable cambia con el tiempo.
-
-- TPR: True Positive Rate. Cantidad de aciertos, recall.
-
-        TPR (Recall)= TP/(TP+FN) // Better if close to 1
-
-- FPR: False positive rate
-
-        FPR = FP/(FP + TN)       // Better if close to 0
-
-AUC e [0.5 ,1] (better close to 1), if <0.5, probabilities might have to be changed (detects errors better)
-
-AUC > 0.75 --> buen modelo
+- Algunos algoritmos como Linear Regression no trabajan bien con multicolinearidad.
 
 
-### 5.4. Feature Importance
+### 5.4. Datasets Desbalanceados (Reg3)
 
 Es importante revisar las feature importance para:
 
@@ -336,5 +403,7 @@ Si dataset desbalanceado, cuanto menos datos más problemático es. Jugar con cl
 - Lograr certificado AWS. Aprender a emplear los recursos de aws.
 - FireDucks reduce mucho el tiempo de pandas en datasets grandes.
 - Repositorio con código en Github
+- Aprender a emplear Airflow, Dagster
+- Utilización de Raycast
 
-     Hasta Regre1 2:04
+     Hasta Regre3 32'
