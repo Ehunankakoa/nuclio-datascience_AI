@@ -24,20 +24,29 @@
 
 ### 1.2. Data preparation:
 
-1. Split: validation (ver Estrategias de Validación), test y train.
-2. Columnas a eliminar: columnas con >95% nulos o alta cardinalidad (IDs, etc).
+1. Split: validation (ver Estrategias de Validación), test y train. 
+    - **Importante:** si se altera el balanceo: test y train deben tener mismo balanceo. Validation no se toca.
+    - Si series temporales: validation son los datos más próximos  la realidad. (se puede usar un YYYYMM para filtrar (year*100 + month))
+2. Columnas a eliminar: columnas con >95% nulos o alta cardinalidad (IDs, etc). También si la columna puede pasar data leakage (si una variable se ve afectada por el target y no al revés)
 3. Filas a eliminar: nulos en target, fila con muchos nulos y en columnas con <0.5% nulos.
 4. Análisis de variables:
 
     4.1. Análisis del target: tipo de variable, nulos, balanceado?...
 
-    Datasets Desbalanceados (Reg3): si el target tiene una clase mayoritaria >80%, el modelo aprenderá a predecir la clase mayoritaria con facilidad (i.e. transacciones fraudulentas). Cuantos menos datos, es peor.
+    Datasets Desbalanceados (Reg3): si el target tiene una clase mayoritaria >80%, el modelo aprenderá a predecir la clase mayoritaria con facilidad (i.e. transacciones fraudulentas). Cuantos menos datos, el desbalanceo es un problema mayor.
 
+    **Importante:** si se altera el balanceo: test y train deben tener mismo balanceo. Validation no se toca.
     Cómo se balancear:
 
     - Random Oversampling: aumentar la cantidad de filas de la clase minoritaria. Generación de datos artificiales (caídas de servidores o fallos mecánicos en trenes o aviones)
     - SMOTE: generar un dato sintétco generado en algún punto del espacio entre 2 datos reales cercanos.
     - Random Undersampling: útil si se tienen muchos datos. Se puede convinar con oversampling.
+
+            #Se puede variar proportion entre 0.25-0.4 para mejorar resultados, pero el modelo tendrá muchas menos filas
+            n_nonzeros = int(len(df_dev_nonzero) * (1/proporcion - 1))
+            df_dev_zero_sample = df_dev_zero.sample(n = n_nonzeros, random_state = 42)
+            df_dev_sample = pd.concat([df_dev_nonzero, df_dev_zero_sample])
+
     - Tomek Links: eliminación de filas de clase mayoritaria cercanas a valores de filas clase minoritaria. Train y test irán bien, pero validation le costará más.
 
 
@@ -62,9 +71,9 @@
             )
             plt.show()
 
-    4.1. Fecha: plot vs target. Extraer números.
+    4.2. Fecha: plot vs target. Extraer números.
 
-    4.2. Categóricas:
+    4.3. Categóricas:
 
             def explore_cat_values(dataframe, column, target_column):
             _results_df = dataframe[dataframe[target_column] > 1].pivot_table(index=column, values=target_column, aggfunc=[len, np.mean,lambda x: np.percentile(x, 50) ,lambda x: np.percentile(x, 25) ,lambda x: np.percentile(x, 75)])
@@ -86,7 +95,7 @@
     - Reducción de categorías no necesarias para encarar OHE o fijar FrequencyEncoder (FE)
 
 
-    4.3. Numéricas: en principio no hay preprocesado. Lo suyo es mirar las más importantes y las menos. Boxplot, correlación pej.
+    4.4. Numéricas: en principio no hay preprocesado. Lo suyo es mirar las más importantes y las menos. Boxplot, correlación pej.
 
 5. Imputación:
 
@@ -201,6 +210,29 @@ Para que el modelo funcione:
 
 1. Bagging: réplicas del dataset original con la técnica bootstrap. En cada réplica pueden repetirse o faltar filas del dataset, de esta forma se genera variedad.
 
+Impresión de RF:
+
+    from sklearn.tree import export_graphviz
+    import graphviz
+
+    dot_data = export_graphviz(
+    decision_tree = model1_rf[0],
+    out_file=None,
+    feature_names=X_train_1.columns,
+    #class_names=['No delay', 'Delay'],
+    filled=True,
+    impurity=True,
+    proportion=True,
+    rotate=True,
+    rounded=True
+    )
+
+    graphviz.Source(dot_data)
+
+---
+
+    top_features = pd.Series(model1_rf.feature_importances_.round(3), index=X_train_1.columns).sort_values(ascending=False).head(20)
+
 
 #### 3.1.3. Gradient boost (>500k filas):
 
@@ -305,6 +337,60 @@ Es importante revisar las feature importance para:
 
     pd.Series(rf_model.feature_importances_, index=X_train.columns).sort_values(ascending = False).head (15)
 
+### 4.5. Comparación de modelos:
+
+---
+**Entreno  y comparación de diferentes modelos a la vez:**
+
+    models = [('DecisionTree', DecisionTreeRegressor(max_depth=3, random_state=42)),
+                ('RandomForest', RandomForestRegressor(n_estimators=100, max_depth=3, random_state=42)),
+                ('GradientBoosting', xgb.XGBRegressor(n_estimators=100, max_depth=3, random_state=42)),
+                ('LinearRegression', LinearRegression())
+            ]
+---
+    def AutoModelling(dev_DataFrame,val_DataFrame,target_var,test_size_prop,models):
+
+        dev_DataFrame_x=dev_DataFrame.drop(target_var,axis = 1)
+        dev_DataFrame_y=dev_DataFrame[target_var]
+        val_DataFrame_x=val_DataFrame.drop(target_var,axis = 1)
+        val_DataFrame_y = val_DataFrame[target_var]
+
+        X_train, X_test, y_train, y_test = model_selection.train_test_split(
+            dev_DataFrame_x,
+            dev_DataFrame_y,
+            test_size = test_size_prop, #20% del development se va a test, 80% en train
+            random_state = 42)
+
+
+        # create base table with real target
+        results_df = pd.DataFrame(y_test).copy()
+        results_df.columns = ['Target']
+
+
+        for model in models:
+            model_name = model[0]
+            model_instance = model[1]
+            model_instance.fit(X_train, y_train)
+            predictions = model_instance.predict(X_test)
+            test_predictions = pd.DataFrame(predictions, columns=[str('Prediction-'+ model[0])], index=X_test.index)
+            results_df = results_df.join(test_predictions)
+            results_df[str('error-'+ model[0])] = results_df['Target'] - results_df[str('Prediction-'+ model[0])]
+            results_df[str('squared_error-'+ model[0])] = results_df[str('error-'+ model[0])] ** 2
+            results_df[str('rooted_squared_error-'+ model[0])] = np.sqrt(results_df[str('squared_error-'+ model[0])])
+            mse_train = metrics.mean_squared_error(y_train, model_instance.predict(X_train))
+            mse = metrics.mean_squared_error(y_test, predictions)
+            mse_val = metrics.mean_squared_error(val_DataFrame_y, model_instance.predict(val_DataFrame_x))
+            print('MSE for {}: train - {} test - {}, validación - {}'.format(model_name, np.round(mse_train,4), np.round(mse,4), np.round(mse_val,4)))
+        return results_df
+---
+    def KPIs_modelo(df_resultados, sq_error_var = 'squared_error',rooted_sql_error_var = 'rooted_squared_error'):
+        mse = df_resultados[sq_error_var].mean()
+        rmse = df_resultados[rooted_sql_error_var].mean()
+        mse_modelo_tonto = (df_resultados['Target'] **2).mean()
+        print('MSE tonto: {} - MSE: {} - RMSE: {}'.format(mse_modelo_tonto, mse, rmse))
+
+
+
 ## 5. Regresión: Métodos de rendimiento/evaluación
 
 Comparación del model.score con train vs test -> over o underfitting? Si diferencia de score es <1%, es un fit correcto.
@@ -313,11 +399,28 @@ Si dataset con fechas, revisar el success dependiendo de la fecha.
 
 ### 5.1. Métricas
 
-- MSE (Mean Square Error)
-- RMSE (Root Mean Square Error)
-- MAE (Mean absolute Error)
-- MAPE (Mean Absolute Percentage Error)
+Impresión de una gráfica con los erores puede dar pistas de dónde acierta y falla más nuestro modelo:
 
+- MSE (Mean Square Error): sumatorio de errores al cuadrado dividido entre la cantidad de muestras. Es el parámetro que pretende minimizar el algoritmo.
+
+        MSE = 1/n * Σ e^2
+
+- RMSE (Root Mean Square Error): raíz cuadrada de MSE, valor más entendible dado que está en la misma magnitud que los datos. El MSE tiene los errores al cuadrado, por lo que con números grandes se dispara aunque los errores no sean tan grandes.
+
+        MSE = [1/n * Σ e^2]^(1/2)
+
+- MAE (Mean absolute Error): sumatorio de los errores (en valor absoluto) dividido por la cantidad de muestras. Se acerca más al error real de los datos, pero no es la empleada por el algoritmo.
+
+        MAE = 1/n * Σ|e|        [e = ÿ - y]
+
+- MAPE (Mean Absolute Percentage Error): Respecto al 100%, cuánto se desvia el modelo. Sumatorio del porcentaje de errores (valor absoluto) respecto al valor real dividido por cantidad de muestras.
+
+        MAPE = 1/n * Σ|ÿ/y-100|
+
+- R2 (R cuadrado): qué porcentaje de datos pueden explicarse por mi modelo. Cuánto mejora nuestro modelo respecto al modelo dummy. En el caso de regresión lineal, el valor que da el dummy es la media de los datos. Cuanto más se acerque a 1 mejor será el modelo.
+
+        R2 = 1 - Σ(y - ÿ)^2 / Σ(y - mean(y))
+        R2 ∈ [0,1]
 
 ### 5.2. Outliers (Reg1)
 
@@ -357,22 +460,16 @@ Importante: correlación **<ins>no significa causalidad </ins>**
 - Algunos algoritmos como Linear Regression no trabajan bien con multicolinearidad.
 
 
-### 5.4. Datasets Desbalanceados (Reg3)
-
-Es importante revisar las feature importance para:
-
-- Detectar features eliminables para en el momento de volver a entrenar, se haga con menos ruido y menos overfitting (menos reglas específicas).
-- Revisar comportamiento del modelo: tal vez sólo usa 5 variables (underfit de manual)
-- Revisar features muy correlacionadas (podría sumarse su importance) 
-
-    pd.Series(rf_model.feature_importances_, index=X_train.columns).sort_values(ascending = False).head (15)
+### 5.4. 
 
 
-## 6. Estratégicas de validación
+
+
+## Anexo 1. Estratégicas de validación
 
 Bias-Variance trade off. 
-- Overfitting: data memorization, low generalization capacity. Too much vairance.
-- Underfitting: too simple, too much bias. Decision thresholds not correctly adjusted.
+- Overfitting: data memorization, low generalization capacity. Too much vairance. Train error << test and val errors
+- Underfitting: too simple, too much bias. Decision thresholds not correctly adjusted. Bad metrics and similar errors in test and val.
 
 Para elegir el validation set se debe tener en cuenta la distribución del target:
 
@@ -381,15 +478,15 @@ Para elegir el validation set se debe tener en cuenta la distribución del targe
 - Tendencia: dirección constante (precio vivienda). validation set es el subset más reciente.
 - Si mix: mejor datos más recientes.
 
-### 6.1. Random Holdout
+### A.1. Random Holdout
 
 Dataset split into Validation Set (final evaluation), Test Set (model development) and Training Set. El tamaño de cada partición debe ajustarse al tamaño del dataset y ser suficientemente grandes para obtener métricas de evaluación estadísticamente significativas.
 
-### 6.2. K-Fold Cross Validation
+### A.2. K-Fold Cross Validation
 
 Repetición de proceso de modelización (Train + Test) k veces. El dataset ya se ha dividido en Validation y modelling split/k. De esta manera se obtiene una métrica de rendimiento promedio, modelizando k veces, empleando cada split de modeling como test en cada vez.
 
-### 6.3. Bootstrap (muy pocos datos)
+### A.3. Bootstrap (muy pocos datos)
 
 En caso de muy pocos datos para realizar la validación, se realizan n repeticiones de modelización, mezclando splits dentro del dataset.
 
@@ -405,5 +502,6 @@ Si dataset desbalanceado, cuanto menos datos más problemático es. Jugar con cl
 - Repositorio con código en Github
 - Aprender a emplear Airflow, Dagster
 - Utilización de Raycast
+- Modelo categorización de textos y extracción de palabras clave (reviews a categorías negativa, positiva o neutra, largo, corto, medio, etc)
 
-     Hasta Regre3 32'
+     Hasta Regre3 --> empezar visualización
