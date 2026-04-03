@@ -99,7 +99,7 @@ Gráfico mal hecho —> se debe asegurar que el eje x sólo tiene 1 valor de y
 
 # PowerBI
 
-## 1. Configuración:
+## 1. Configuración (para seguir la clase):
 
 ### 1.1. Opciones y Configuración -> Opciones
 
@@ -107,4 +107,14 @@ Gráfico mal hecho —> se debe asegurar que el eje x sólo tiene 1 valor de y
 
 ### 1.2. Archivo Actual
 
-- 
+- Config Regional a español
+
+## 2. PowerBI:
+
+- Fácil adquisición de datos. Mejor primero procesarlos en Python, pero después fácil de graficar en Power BI.
+- Elementos interactivos, menús segmentables y gráficos personalizables. Tarjetas con datos de las segmentaciones seleccionadas.
+- Se pueden mostrar tablas y Pivot Tables junto con gráficos 'Decomposition Tree'.
+- 'Key Influencers': gráfico de IA puede ayudar a mostrar los datos representativos en cuanto a target.
+- Segmentación -> para que el cliente haga sus indagaciones. Para sincronización ir a 'View' -> 'Sync slicers'
+- Filtros -> para el desarrollador. Permite eliminar outliers o datos en blanco.
+- Marcadores -> se acuerdan de ciertos parámetros y muestran su segmentación.
