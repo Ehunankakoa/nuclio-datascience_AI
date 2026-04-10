@@ -14,6 +14,183 @@ V7 (Clustering & Collab Filtering 3): https://vimeo.com/reviews/ed244b19-ee6a-4b
 
 
 
+# ScikitLearn
+
+- imputar en columnas por tipos (o asignar todas en los imputers), para que si llegan nulos en columnas que not tenían nulos en train, no colapse la pipeline
+
+- De cara a tner missing indicator en pipeline --> añadir 'add_indicator = True' en el SimpleImputer
+
+- En transformers, se pueden hacer ("pass", "passthrough", ["cols"]) en las columnas que no se deban editar
+
+- Aplicar una función en **pandas**--> df["col1"].apply(defined_function)
+
+- Para funciones en Pipelines (que trabajan con df): hacer que la función reciba y devuelva df. **Transformar con Fucntion Transformer para métodos fit y transform**
+
+    def extract_title_apply_df(X, col_name, saludo):
+        print(saludo)
+        X["Title"] = X[col_name].apply(extract_title_from_name)
+        return(X)
+    
+    from sklearn.preprocessing import FunctionTransformer
+
+    MyCustomTransformer = FunctionTransformer(
+        func = extract_title_apply_df
+        kw_args = {
+            "col_name": "NAME"
+            "saludo" : "scikit_learn es una pasada
+        }
+    )
+
+- **inverse_transform**: revertir transformación de datos para ser legibles.
+
+
+1. Sobre una muestra tener una solución/lógica (imputación y transformación)
+2. Refactorizar: obtener datos de una columna con mucha info, sólo alguna válida (nombres con título)
+3. Optimizar
+
+
+# Time Series:
+
+- Una serie temporal tiene datos en forma de tiempo en cantidades discretas. No sirven fechas de nacimiento.
+
+- Split: validation con valores más recientes, el resto a dev
+
+## 1. Modelos TS **univariante**:
+
+- Una series estacionaria no incrementa con el tiempo y su varianza (max-min) y periodo son cte.
+- Para transformar series en estacionarias:
+    - log: reducción de amplitud
+    - diff: eliminación de tendencia. 
+
+        ts["ts_log_diff"] = ts["y_log"].diff() #resta el valor anterior al actual
+
+- **test adfuller**(x=ts_passengers["y_log"])[1] # p-value >= 0.05 NO es estacionaria
+
+
+### 1.1. ARIMA (pdq) (req = estacionaria) (AutoRegressing Integrated Moving Average)
+
+    Posibilidad de librería auto_arima
+
+- *p* --> Modelo autoregresivo, AR: a partir de la y, creamos lag para tener X(números para predecir y): (p = 3) --> columnas de train
+p = lags del pasado a usar
+    
+    #intentar aprender la y desde el día anterior o datos anteriores
+    ts_lynx["y_lag_1"] = ts_lynx["y"].shift(1)
+    ts_lynx["y_lag_2"] = ts_lynx["y"].shift(2)
+    ts_lynx["y_lag_3"] = ts_lynx["y"].shift(3)
+
+- *q* --> Medias Móviles, MA: predecir empleando una ponderación de errores anteriores. q = cantidad de errores del pasado a usar
+
+- *d* --> Integrated: si aplicas o no diff. d = [0,1,2] --> objetivo: transformar a estacionaria (revisar p-value)
+d = número de diferenciaciones a usar
+
+- **Autocorrelación**: para determinar la *q* y parcial para determinar *p*
+
+    - *plot_acf*: Correlación de Pearson entre el dato y su dato anterior/es. Si está muy correlacionado o inversamente corr --> útil para el modelo -> se pueden probar q = los valores útiles
+    - *plot_pacf*: Correlación parcial: corr directa de valores anteriores sobre el valor ("abuelos sobre nietos") --> mismo comportamiento que con q, probar *p* en valores con alto abs(corr).
+
+
+#### Modelo Sarimax:
+
+    PDQ = [
+        # p, d, q
+        (1,0,1),
+        (1,0,2),
+        (1,0,4),
+        (1,0,5),
+        (1,0,6),
+        (2,0,1),
+        (2,0,2),
+        (2,0,4),
+        (2,0,5),
+        (2,0,6), 
+    ]
+
+    DICT = {} # para almacenar resultados
+
+    for pdq in PDQ:
+        model = sm.tsa.statespace.SARIMAX(
+            endog = ts_train,
+            order = pdq,
+            seasonal_order = (0,0,0,0),     #default
+            enforce_stationarity = False,   #default
+            enforce_invertibility = False,  #default
+        )
+
+        model.fitted = model.fit()
+        DICT[pdq] = model_fitted.aic
+
+Printeando el DICT --> mejor cuanto más baja la puntuación, los modelos con muchos parámetros tambn son penalizados
+
+    AIC = 2*k - 2*ln(*L*) # k = # parameters, *L* = max value likelihood func model
+
+- *plot_diagnostics*: para representar los residuals
+
+    - Standarized residual: se busca distribución aleatoria
+    - Histogram plus estimated density: se busca parecido con distribución N(0,1)
+    - Correlogram: corr entre residuo día con día anterior
+
+
+#### Prueba con test:
+
+    ts_test_pred_1 =  best_model_fitted.get_forecast(steps = len(ts_test)).predicted_mean
+
+    fig = plt.figure(figsize=(12,4))
+    ax = fig.subplots()
+
+    ax.plot(ts_train)       #plot of train
+    ax.plot(ts_test)        #plot of test (prediction goal)
+    ax.plot(ts_test_pred1)  #plot of test prediction1
+
+Si el modelo no da los resultados deseados, antes de aumentar la compljidad del modelo aumentando q o p, probar a diferenciar.
+
+Uso de métricas de regresión como RMSE. Un modelo puede mejorar predicción de tendencia y tener menor AIC, pero mayor RMSE
+
+### 1.2. Prophet (no necesita estac)
+
+    y(t) = g(t) + s(t) + h(t) + εt #tendencia + estacional + efecto eventos + ruido
+
+Modelo:
+
+    ts_prophet = df[df["origin"] == "Sector_1"][["ds", "y"]]
+
+    model = Prophet()
+    model.fit(ts_prophet)
+
+    ts_pred_df = model.make_future_dataframe(periods=12, freq='M', include_history = True) # + 12 meses
+
+    y_pred = model.predict(ts_pred_df)
+
+    y_pred[["ds,"yhat"]].set_index("ds).plot
+
+### 1.3. Holt Winters (BONUS)
+
+## 2. Modelos TS **multivariante**:
+
+XGboost, Redes Neuronales
+
+## Reproducibilidad y reentreno
+
+Cuantos menos parámetros, más sencillo es reentrenar. Las series pueden cambiar de tendencias, lo que hace que sean modelos cambiantes con el tiempo.
+
+
+
+## Traducción de resultados
+
+Para tener valores legibles en la predicción hay que revertir el log (con exponencial) y el diff (empleando el valor_referencia, primer valor de log) y realizando un cumsum()
+    ts_passangers.iloc[0,4] = valor_referencia 
+    ts_passangers["y_log2"] = ts_passangers["y_log_diff2"].cumsum() 
+    ts_passangers["y2"] = ts_passangers["y_log2"].apply(np.exp) 
+    # Si no coincide, puede que haya un np.log1p en vez de np.log
+
+
+
+
+
 Nico Notes:
 
 - Francois Chollet: autor de keras (librería) y top libros Deep Learning.
+- Andrej Karpathy: eminencia TS. Es muy experimental y algunas decisiones de algoritmos no son explicables
+- Feature Engineering Moving Average (Rolling Pandas): tambn como transformación de datos para suavizar tendencias y quitar ruido.
+
+    ts_["y"].rolling(window = 3).mean() #calcula la media de 3 días (actual y 2 anteriores) 
