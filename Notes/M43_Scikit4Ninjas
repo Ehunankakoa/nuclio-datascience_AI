@@ -175,6 +175,14 @@ Cuantos menos parámetros, más sencillo es reentrenar. Las series pueden cambia
 
 
 
+
+## 3. Preprocesado TimeSeries
+
+- bfill --> relleno con valores futuros. Sólo con variables que controle la empresa como el precio, no en ventas o tiempo (sería leakage)
+
+
+
+
 ## Traducción de resultados
 
 Para tener valores legibles en la predicción hay que revertir el log (con exponencial) y el diff (empleando el valor_referencia, primer valor de log) y realizando un cumsum()
