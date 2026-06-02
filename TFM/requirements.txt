@@ -4,3 +4,5 @@ scikit-learn
 matplotlib
 seaborn
 pyarrow
+lightgbm
+xgboost
